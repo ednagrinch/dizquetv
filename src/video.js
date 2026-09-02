@@ -7,6 +7,7 @@ const fs = require('fs')
 const ProgramPlayer = require('./program-player');
 const channelCache  = require('./channel-cache')
 const wereThereTooManyAttempts = require('./throttler');
+const settingsCache = require('./settings-cache');
 
 module.exports = { router: video, shutdown: shutdown }
 
@@ -22,7 +23,7 @@ function video( channelService, fillerDB, db, programmingService, activeChannelS
     var router = express.Router()
 
     router.get('/setup', (req, res) => {
-        let ffmpegSettings = db['ffmpeg-settings'].find()[0]
+        let ffmpegSettings = settingsCache.getAll(db, 'ffmpeg-settings')[0]
         // Check if ffmpeg path is valid
         if (!fs.existsSync(ffmpegSettings.ffmpegPath)) {
             res.status(500).send("FFMPEG path is invalid. The file (executable) doesn't exist.")
@@ -72,7 +73,7 @@ function video( channelService, fillerDB, db, programmingService, activeChannelS
             return
         }
 
-        let ffmpegSettings = db['ffmpeg-settings'].find()[0]
+        let ffmpegSettings = settingsCache.getAll(db, 'ffmpeg-settings')[0]
 
         // Check if ffmpeg path is valid
         if (!fs.existsSync(ffmpegSettings.ffmpegPath)) {
@@ -174,7 +175,7 @@ function video( channelService, fillerDB, db, programmingService, activeChannelS
 
         let isBetween = ( (typeof req.query.between !== 'undefined') && (req.query.between=='1') );
 
-        let ffmpegSettings = db['ffmpeg-settings'].find()[0]
+        let ffmpegSettings = settingsCache.getAll(db, 'ffmpeg-settings')[0]
 
         // Check if ffmpeg path is valid
         if (!fs.existsSync(ffmpegSettings.ffmpegPath)) {
@@ -533,7 +534,7 @@ function video( channelService, fillerDB, db, programmingService, activeChannelS
         #EXT-X-TARGETDURATION:60
         #EXT-X-PLAYLIST-TYPE:VOD\n`;
 
-        let ffmpegSettings = db['ffmpeg-settings'].find()[0]
+        let ffmpegSettings = settingsCache.getAll(db, 'ffmpeg-settings')[0]
 
         cur ="59.0";
 
@@ -582,7 +583,7 @@ function video( channelService, fillerDB, db, programmingService, activeChannelS
 
         var data = "ffconcat version 1.0\n"
 
-        let ffmpegSettings = db['ffmpeg-settings'].find()[0]
+        let ffmpegSettings = settingsCache.getAll(db, 'ffmpeg-settings')[0]
 
         let sessionId = StreamCount++;
         let audioOnly = ("true" == req.query.audioOnly);

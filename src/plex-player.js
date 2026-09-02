@@ -10,6 +10,7 @@ const EventEmitter = require('events');
 const helperFuncs = require('./helperFuncs')
 const FFMPEG = require('./ffmpeg')
 const constants = require('./constants');
+const settingsCache = require('./settings-cache');
 
 let USED_CLIENTS = {};
 
@@ -20,7 +21,7 @@ class PlexPlayer {
         this.ffmpeg = null;
         this.plexTranscoder = null;
         this.killed = false;
-        let coreClientId = this.context.db['client-id'].find()[0].clientId;
+        let coreClientId = settingsCache.getAll(this.context.db, 'client-id')[0].clientId;
         let i = 0;
         while ( USED_CLIENTS[coreClientId+"-"+i]===true) {
             i++;
@@ -47,7 +48,7 @@ class PlexPlayer {
         let ffmpegSettings = this.context.ffmpegSettings;
         let db = this.context.db;
         let channel = this.context.channel;
-        let server = db['plex-servers'].find( { 'name': lineupItem.serverKey } );
+        let server = settingsCache.getAll(db, 'plex-servers').filter( (s) => s.name === lineupItem.serverKey );
         if (server.length == 0) {
             throw Error(`Unable to find server "${lineupItem.serverKey}" specified by program.`);
         }
@@ -57,7 +58,7 @@ class PlexPlayer {
         }
 
         try {
-            let plexSettings = db['plex-settings'].find()[0];
+            let plexSettings = settingsCache.getAll(db, 'plex-settings')[0];
             let plexTranscoder = new PlexTranscoder(this.clientId, server, plexSettings, channel, lineupItem);
             this.plexTranscoder = plexTranscoder;
             let watermark = this.context.watermark;

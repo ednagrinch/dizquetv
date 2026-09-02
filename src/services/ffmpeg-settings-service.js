@@ -1,4 +1,5 @@
 const databaseMigration = require('../database-migration');
+const settingsCache = require('../settings-cache');
 const DAY_MS = 1000 * 60 * 60 * 24;
 const path = require('path');
 const fs = require('fs');
@@ -26,6 +27,7 @@ class FfmpegSettingsService {
         console.log("ffmpeg path UI unlocked for another day...");
         ffmpeg.ffmpegPathLockDate = new Date().getTime() + DAY_MS;
         this.db['ffmpeg-settings'].update({ _id: ffmpeg._id }, ffmpeg)
+        settingsCache.invalidate('ffmpeg-settings');
     }
 
 
@@ -56,6 +58,7 @@ class FfmpegSettingsService {
         }
 
         this.db['ffmpeg-settings'].update({ _id: ffmpeg._id }, attempt)
+        settingsCache.invalidate('ffmpeg-settings');
         return {
             ffmpeg: this.get()
         }
@@ -69,7 +72,7 @@ class FfmpegSettingsService {
     }
 
     getCurrentState() {
-        return this.db['ffmpeg-settings'].find()[0]
+        return settingsCache.getAll(this.db, 'ffmpeg-settings')[0]
     }
 
 

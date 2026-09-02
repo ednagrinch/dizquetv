@@ -1,5 +1,6 @@
 
 //hmnn this is more of a "PlexServerService"...
+const settingsCache = require('../settings-cache');
 const ICON_REGEX = /https?:\/\/.*(\/library\/metadata\/\d+\/thumb\/\d+).X-Plex-Token=.*/;
 
 const ICON_FIELDS = ["icon", "showIcon", "seasonIcon", "episodeIcon"];
@@ -116,6 +117,7 @@ class PlexServerDB
     async deleteServer(name) {
         let report = await this.fixupEveryProgramHolders(name, null);
         this.db['plex-servers'].remove( { name: name } );
+        settingsCache.invalidate('plex-servers');
         return report;
     }
 
@@ -157,6 +159,7 @@ class PlexServerDB
             { _id: s._id  },
             newServer
         );
+        settingsCache.invalidate('plex-servers');
         return report;
 
 
@@ -195,6 +198,7 @@ class PlexServerDB
         };
         this.normalizeServer(newServer);
         this.db['plex-servers'].save(newServer);
+        settingsCache.invalidate('plex-servers');
     }
 
     fixupProgramArray(arr, serverName,newServer, channelReport) {

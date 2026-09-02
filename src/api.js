@@ -7,6 +7,7 @@ const JSONStream = require('JSONStream');
 const FFMPEGInfo = require('./ffmpeg-info');
 const PlexServerDB = require('./dao/plex-server-db');
 const Plex = require("./plex.js");
+const settingsCache = require('./settings-cache');
 
 const timeSlotsService = require('./services/time-slots-service');
 const randomSlotsService = require('./services/random-slots-service');
@@ -31,7 +32,7 @@ function api(db, channelService, fillerDB, customShowDB, xmltvInterval,  guideSe
 
     router.get('/api/version', async (req, res) => {
       try {
-        let ffmpegSettings = db['ffmpeg-settings'].find()[0];
+        let ffmpegSettings = settingsCache.getAll(db, 'ffmpeg-settings')[0];
         let v = await (new FFMPEGInfo(ffmpegSettings)).getVersion();
         res.send( {
             "dizquetv" : constants.VERSION_NAME,
@@ -622,6 +623,7 @@ function api(db, channelService, fillerDB, customShowDB, xmltvInterval,  guideSe
     router.put('/api/plex-settings', (req, res) => {
       try {
         db['plex-settings'].update({ _id: req.body._id }, req.body)
+        settingsCache.invalidate('plex-settings');
         let plex = db['plex-settings'].find()[0]
         res.send(plex)
         eventService.push(
@@ -678,6 +680,7 @@ function api(db, channelService, fillerDB, customShowDB, xmltvInterval,  guideSe
             pathReplace: '',
             pathReplaceWith: ''
         })
+        settingsCache.invalidate('plex-settings');
         let plex = db['plex-settings'].find()[0]
         res.send(plex)
         eventService.push(

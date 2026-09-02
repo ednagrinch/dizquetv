@@ -397,7 +397,7 @@ function ffmpeg() {
         audioEncoder: "ac3",
         targetResolution: "1920x1080",
         videoBitrate: 2000,
-        videoBufSize: 2000,
+        videoBufSize: 4000,
         audioBitrate: 192,
         audioBufSize: 50,
         audioSampleRate: 48,

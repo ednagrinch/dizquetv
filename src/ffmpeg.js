@@ -500,9 +500,12 @@ class FFMPEG extends events.EventEmitter {
                             `-bufsize:v`, `${this.opts.videoBufSize}k`
                 );
                 if (this.opts.videoEncoder.toLowerCase() === "mpeg2video") {
-                    // This makes message "impossible bitrate constraints, this will fail" appear but nothing actually fails and it really looks like b:v is the only way to make the video look good when using mpeg2video
+                    // -b:v sets the target bitrate mpeg2video needs for consistent
+                    // rate control. The previous -qscale:v 1 alongside it forced
+                    // constant-quantizer mode at the same time as target-bitrate
+                    // mode, which is what ffmpeg's own "impossible bitrate
+                    // constraints" warning was flagging.
                     ffmpegArgs.push(
-                        `-qscale:v`, `1`,
                         '-b:v', `${this.opts.videoBitrate}k`
                     );
                 }
@@ -512,7 +515,7 @@ class FFMPEG extends events.EventEmitter {
                 ffmpegArgs.push(
                             `-b:a`, `${this.opts.audioBitrate}k`,
                             `-maxrate:a`, `${this.opts.audioBitrate}k`,
-                            `-bufsize:a`, `${this.opts.videoBufSize}k`
+                            `-bufsize:a`, `${this.opts.audioBufSize}k`
                 );
                 if (this.audioChannelsSampleRate) {
                     ffmpegArgs.push(
@@ -540,7 +543,7 @@ class FFMPEG extends events.EventEmitter {
         } else {
             //Concat stream is simpler and should always copy the codec
             ffmpegArgs.push(
-                            `-probesize`, 32 /*`100000000`*/,
+                            `-probesize`, 500000 /*`100000000`*/,
                             `-i`, streamUrl );
             if (this.audioOnly !== true) {
                 ffmpegArgs.push( `-map`, `0:v` );

@@ -6,20 +6,16 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "build": "browserify ./web/app.js -o ./web/public/bundle.js",
-    "dev-client": "watchify ./web/app.js -o ./web/public/bundle.js",
-    "dev-server": "nodemon index.js --ignore ./web/ --ignore ./db/ --ignore ./xmltv.xml",
+    "build": "cd client && npm run build",
+    "dev-client": "cd client && npm run dev",
+    "dev-server": "nodemon index.js --ignore ./web/ --ignore ./client/ --ignore ./db/ --ignore ./xmltv.xml",
     "compile": "babel index.js -d dist && babel src -d dist/src",
     "package": "sh ./make_dist.sh",
-    "clean": "del-cli --force ./bin ./dist ./.dizquetv ./web/public/bundle.js"
+    "clean": "del-cli --force ./bin ./dist ./.dizquetv ./web/public/assets ./web/public/index.html"
   },
   "author": "vexorian",
   "license": "Zlib",
   "dependencies": {
-    "angular": "^1.8.0",
-    "angular-router-browserify": "0.0.2",
-    "angular-sanitize": "^1.8.2",
-    "angular-vs-repeat": "2.0.13",
     "axios": "^0.21.1",
     "body-parser": "^1.19.0",
     "diskdb": "0.1.17",
@@ -31,7 +27,6 @@
     "i18next-http-middleware": "^3.1.4",
     "JSONStream": "1.0.5",
     "merge": "2.1.1",
-    "ng-i18next": "^1.0.7",
     "node-graceful-shutdown": "1.1.0",
     "node-ssdp": "^4.0.0",
     "quickselect": "2.0.0",
@@ -49,12 +44,10 @@
     "@babel/preset-env": "^7.9.5",
     "@commitlint/cli": "^12.1.4",
     "@commitlint/config-conventional": "^12.1.4",
-    "browserify": "^16.5.1",
     "copyfiles": "^2.2.0",
     "del-cli": "^3.0.0",
     "nexe": "^3.3.7",
-    "nodemon": "^2.0.3",
-    "watchify": "^3.11.1"
+    "nodemon": "^2.0.3"
   },
   "babel": {
     "plugins": [

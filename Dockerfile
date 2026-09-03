@@ -17,7 +17,13 @@ RUN ln -s /usr/local/bin/ffmpeg /usr/bin/ffmpeg
 # driver for VAAPI -- installed explicitly rather than relying on whatever
 # the base image happens to ship, since that's what actually talks to
 # /dev/dri for hardware encoding. vainfo is just for diagnosing the driver.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# intel-media-va-driver-non-free lives in Ubuntu's multiverse component,
+# which minimal base images don't enable by default -- add-apt-repository
+# turns it on regardless of whether this image uses the legacy
+# sources.list format or the newer deb822 one.
+RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
+    && add-apt-repository -y multiverse \
+    && apt-get update && apt-get install -y --no-install-recommends \
     intel-media-va-driver-non-free \
     vainfo \
     && rm -rf /var/lib/apt/lists/*

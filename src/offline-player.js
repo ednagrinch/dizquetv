@@ -43,7 +43,13 @@ class OfflinePlayer {
             } else {
                 ff = await ffmpeg.spawnOffline(duration);
             }
-            ff.pipe(outStream,  {'end':false} );
+            // Both spawnError() and spawnOffline() intentionally return
+            // undefined instead of a stream when the configured error
+            // screen is "kill" (or transcoding is disabled) -- they already
+            // emit their own 'error'/'end' event in that case.
+            if (typeof(ff) !== 'undefined') {
+                ff.pipe(outStream,  {'end':false} );
+            }
 
             ffmpeg.on('end', () => {
                 emitter.emit('end');
@@ -73,7 +79,9 @@ class OfflinePlayer {
                     });
 
                     ff = await ffmpeg.spawnError('oops', 'oops', Math.min(duration, 60000) );
-                    ff.pipe(outStream);
+                    if (typeof(ff) !== 'undefined') {
+                        ff.pipe(outStream);
+                    }
                 } else {
                     emitter.emit('error', err);
                 }

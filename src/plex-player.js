@@ -118,7 +118,13 @@ class PlexPlayer {
                 });
 
                 ff = await ffmpeg.spawnError('oops', 'oops', Math.min(streamStats.duration, 60000) );
-                ff.pipe(outStream);
+                // spawnError() intentionally returns undefined instead of a
+                // stream when the configured error screen is "kill" (or
+                // transcoding is disabled) -- it already emitted its own
+                // 'error' event in that case, so there's nothing to pipe.
+                if (typeof(ff) !== 'undefined') {
+                    ff.pipe(outStream);
+                }
 
                 emitter.emit('error', err);
             });

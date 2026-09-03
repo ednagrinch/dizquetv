@@ -182,17 +182,28 @@ export default function PlexLibraryBrowser({ onAdd }: PlexLibraryBrowserProps) {
     if (!server || !onAdd) return
     setAddingWhole(true)
     try {
-      const childLists = await Promise.all(branchRows.map((child) => listItems(server, child.key)))
-      const programs = childLists
-        .flat()
+      // allSettled rather than all: one flaky season/album fetch out of many
+      // (a real possibility -- this is N parallel requests to a home Plex
+      // server) shouldn't discard everything else that succeeded.
+      const results = await Promise.allSettled(branchRows.map((child) => listItems(server, child.key)))
+      const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      const programs = results
+        .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof listItems>>> => r.status === 'fulfilled')
+        .flatMap((r) => r.value)
         .filter((item): item is PlexPlayableItem => !item.drillable)
         .map((item) => item.program)
         .sort((a, b) => (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0))
+
       if (programs.length === 0) {
         toast.error('No playable items found.')
         return
       }
       addPrograms(programs)
+      if (failures.length > 0) {
+        toast.warning(
+          `${failures.length} of ${branchRows.length} ${rowsContainerType === 'season' ? 'seasons' : 'albums'} failed to load and were skipped.`,
+        )
+      }
     } catch (e) {
       toast.error(`Failed to add: ${e instanceof Error ? e.message : e}`)
     } finally {

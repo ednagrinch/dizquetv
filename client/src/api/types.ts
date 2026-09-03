@@ -17,6 +17,7 @@ export interface FfmpegSettings {
   audioVolumePercent: number
   videoEncoder: string
   audioEncoder: string
+  vaapiDevice: string
   targetResolution: string
   videoBitrate: number
   videoBufSize: number

@@ -69,12 +69,34 @@ export default function FfmpegSettingsTab() {
           />
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Video encoder">
-            <TextInput value={value.videoEncoder} onChange={(e) => set('videoEncoder', e.target.value)} />
+          <Field
+            label="Video encoder"
+            hint="h264_vaapi / hevc_vaapi = Intel Quick Sync hardware encode (needs /dev/dri passed through to the container)."
+          >
+            <TextInput
+              list="video-encoder-options"
+              value={value.videoEncoder}
+              onChange={(e) => set('videoEncoder', e.target.value)}
+            />
+            <datalist id="video-encoder-options">
+              <option value="mpeg2video" />
+              <option value="libx264" />
+              <option value="libx265" />
+              <option value="h264_vaapi" />
+              <option value="hevc_vaapi" />
+            </datalist>
           </Field>
           <Field label="Audio encoder">
             <TextInput value={value.audioEncoder} onChange={(e) => set('audioEncoder', e.target.value)} />
           </Field>
+          {value.videoEncoder.toLowerCase().endsWith('_vaapi') && (
+            <Field
+              label="VAAPI device path"
+              hint="The render node for your GPU, e.g. /dev/dri/renderD128. Check with `vainfo` inside the container if unsure."
+            >
+              <TextInput value={value.vaapiDevice} onChange={(e) => set('vaapiDevice', e.target.value)} />
+            </Field>
+          )}
           <Field label="Target resolution" hint="e.g. 1920x1080">
             <TextInput
               value={value.targetResolution}

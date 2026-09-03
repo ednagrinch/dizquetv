@@ -112,6 +112,15 @@ class FFMPEG extends events.EventEmitter {
              `-threads`, isConcatPlaylist? 1 : this.opts.threads,
                           `-fflags`, `+genpts+discardcorrupt+igndts`];
         let stillImage = false;
+
+        // Sets up the VAAPI hardware device so the `hwupload` filter (added
+        // below, right before the encoder, once the existing software
+        // filter chain has finished) has something to upload to. Harmless
+        // to set up even when this particular segment ends up doing
+        // `-c:v copy` instead of actually encoding.
+        if (!isConcatPlaylist && isVaapiEncoder(this.opts.videoEncoder)) {
+            ffmpegArgs.push(`-vaapi_device`, this.opts.vaapiDevice);
+        }
         
         if (
             (limitRead === true)
@@ -470,6 +479,17 @@ class FFMPEG extends events.EventEmitter {
                 currentAudio = `${audioFile}:${audioIndex}`;
             }
 
+            // Hardware-encode-only VAAPI: every filter above still ran
+            // entirely in software (decode, deinterlace, scale, watermark
+            // overlay are untouched). This is the one step that hands the
+            // fully-filtered software frame to the GPU, right before it
+            // reaches the encoder.
+            if ( transcodeVideo && (this.audioOnly !== true) && isVaapiEncoder(this.opts.videoEncoder) ) {
+                let videoRef = currentVideo.startsWith('[') ? currentVideo : `[${currentVideo}]`;
+                filterComplex += `;${videoRef}format=nv12,hwupload[vaapiout]`;
+                currentVideo = '[vaapiout]';
+            }
+
             //If there is a filter complex, add it.
             if (filterComplex != '') {
                 ffmpegArgs.push(`-filter_complex` , filterComplex.slice(1) );
@@ -483,8 +503,8 @@ class FFMPEG extends events.EventEmitter {
                     `-c:v`, (transcodeVideo ? this.opts.videoEncoder : 'copy'),
                     `-sc_threshold`, `1000000000`,
                 );
-                // do not use -tune stillimage for nv
-                if (stillImage && ! this.opts.videoEncoder.toLowerCase().includes("nv") ) {
+                // -tune is an x264/x265-only option; nvenc and VAAPI encoders don't have it
+                if (stillImage && ! this.opts.videoEncoder.toLowerCase().includes("nv") && ! isVaapiEncoder(this.opts.videoEncoder) ) {
                     ffmpegArgs.push('-tune', 'stillimage');
                 }
             }
@@ -624,6 +644,10 @@ class FFMPEG extends events.EventEmitter {
             this.ffmpeg.kill("SIGKILL")
         }
     }
+}
+
+function isVaapiEncoder(encoder) {
+    return encoder.toLowerCase().endsWith("_vaapi");
 }
 
 function isDifferentVideoCodec(codec, encoder) {

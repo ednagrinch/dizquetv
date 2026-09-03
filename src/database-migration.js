@@ -385,7 +385,7 @@ function initDB(db, channelDB, dir ) {
 function ffmpeg() {
     return {
         //How default ffmpeg settings should look
-        configVersion: 5,
+        configVersion: 6,
         ffmpegPath: "/usr/bin/ffmpeg",
         ffmpegPathLockDate: new Date().getTime() + DAY_MS,
         threads: 4,
@@ -395,6 +395,7 @@ function ffmpeg() {
         audioVolumePercent: 100,
         videoEncoder: "mpeg2video",
         audioEncoder: "ac3",
+        vaapiDevice: "/dev/dri/renderD128",
         targetResolution: "1920x1080",
         videoBitrate: 2000,
         videoBufSize: 4000,
@@ -460,6 +461,14 @@ function repairFFmpeg0(existingConfigs) {
         currentConfig.normalizeAudio = true;
 
         currentConfig.configVersion = 5;
+    }
+    if (currentConfig.configVersion == 5) {
+        //migrate from version 5 to 6
+        hasBeenRepaired = true;
+        //new settings:
+        currentConfig.vaapiDevice = "/dev/dri/renderD128";
+
+        currentConfig.configVersion = 6;
     }
     return {
         hasBeenRepaired: hasBeenRepaired,

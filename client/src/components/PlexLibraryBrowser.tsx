@@ -5,7 +5,13 @@ import { ChevronRight, Film, Folder, Loader2, RefreshCw, TriangleAlert } from 'l
 import { plexServersApi } from '../api'
 import type { PlexServer } from '../api/types'
 import type { Program } from '../api/program'
-import { listItems, listLibrarySections } from '../lib/plexBrowse'
+import {
+  listItems,
+  listLibrarySections,
+  type PlexContainerItem,
+  type PlexPlayableItem,
+  type PlexSection,
+} from '../lib/plexBrowse'
 import { formatDuration } from '../lib/programTools'
 import { Button, Card, Select } from './ui'
 
@@ -15,6 +21,10 @@ export interface PlexLibraryBrowserProps {
   onAdd?: (programs: Program[]) => void
 }
 
+// A branch row is either a top-level library section (movie/show/artist) or
+// a container one level down inside it (show/season/artist/album).
+type ContainerType = PlexSection['type'] | PlexContainerItem['type']
+
 interface Crumb {
   title: string
   // null marks the root (the list of library sections).
@@ -22,7 +32,7 @@ interface Crumb {
 }
 
 type Row =
-  | { kind: 'branch'; key: string; title: string; icon?: string }
+  | { kind: 'branch'; key: string; title: string; type: ContainerType; icon?: string }
   | { kind: 'program'; key: string; program: Program }
 
 const ROOT_CRUMB: Crumb = { title: 'Sections', key: null }
@@ -38,6 +48,7 @@ export default function PlexLibraryBrowser({ onAdd }: PlexLibraryBrowserProps) {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [refreshTick, setRefreshTick] = useState(0)
+  const [addingWhole, setAddingWhole] = useState(false)
 
   const server = useMemo(() => servers?.find((s) => s.name === serverName) ?? null, [servers, serverName])
   const currentCrumb = crumbs[crumbs.length - 1]
@@ -73,13 +84,13 @@ export default function PlexLibraryBrowser({ onAdd }: PlexLibraryBrowserProps) {
       currentCrumb.key === null
         ? listLibrarySections(server).then(
             (sections): Row[] =>
-              sections.map((s) => ({ kind: 'branch', key: s.key, title: s.title, icon: s.icon })),
+              sections.map((s) => ({ kind: 'branch', key: s.key, title: s.title, type: s.type, icon: s.icon })),
           )
         : listItems(server, currentCrumb.key).then(
             (items): Row[] =>
               items.map((item) =>
                 item.drillable
-                  ? { kind: 'branch', key: item.key, title: item.title, icon: item.icon }
+                  ? { kind: 'branch', key: item.key, title: item.title, type: item.type, icon: item.icon }
                   : {
                       kind: 'program',
                       key: item.program.key ?? item.program.ratingKey ?? item.program.title ?? '',
@@ -148,6 +159,45 @@ export default function PlexLibraryBrowser({ onAdd }: PlexLibraryBrowserProps) {
     const filtered = programs.filter((p): p is Program => p !== null)
     addPrograms(filtered)
     clearSelection()
+  }
+
+  // Viewing a show's seasons or an artist's albums: fetch every child
+  // container's contents and add the whole thing in one shot, instead of
+  // forcing a click into each season/album individually. Checked against
+  // the *rows themselves* rather than the current crumb -- a section is
+  // also tagged type "show"/"artist" (a TV library vs. one specific show
+  // use the same string), so only the rows unambiguously say whether
+  // we're looking at a list of shows (don't offer this) or a list of one
+  // show's seasons (do).
+  const branchRows = useMemo(() => (rows ?? []).filter((r) => r.kind === 'branch'), [rows])
+  const rowsContainerType = branchRows[0]?.type
+  const wholeContainerLabel =
+    rowsContainerType === 'season'
+      ? 'Add entire series'
+      : rowsContainerType === 'album'
+        ? 'Add entire discography'
+        : null
+
+  async function addEntireContainer() {
+    if (!server || !onAdd) return
+    setAddingWhole(true)
+    try {
+      const childLists = await Promise.all(branchRows.map((child) => listItems(server, child.key)))
+      const programs = childLists
+        .flat()
+        .filter((item): item is PlexPlayableItem => !item.drillable)
+        .map((item) => item.program)
+        .sort((a, b) => (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0))
+      if (programs.length === 0) {
+        toast.error('No playable items found.')
+        return
+      }
+      addPrograms(programs)
+    } catch (e) {
+      toast.error(`Failed to add: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setAddingWhole(false)
+    }
   }
 
   const parentRef = useRef<HTMLDivElement>(null)
@@ -226,6 +276,18 @@ export default function PlexLibraryBrowser({ onAdd }: PlexLibraryBrowserProps) {
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
+
+        {canAdd && wholeContainerLabel && branchRows.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
+            <span className="text-slate-500 dark:text-slate-400">
+              Add every item across all {branchRows.length} {rowsContainerType === 'season' ? 'seasons' : 'albums'}
+              , without opening each one.
+            </span>
+            <Button loading={addingWhole} onClick={addEntireContainer}>
+              {wholeContainerLabel}
+            </Button>
+          </div>
+        )}
 
         {canAdd && programRows.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3 text-sm dark:border-slate-800">

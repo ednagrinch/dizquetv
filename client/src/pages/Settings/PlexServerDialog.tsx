@@ -21,11 +21,24 @@ export default function PlexServerDialog({
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
 
+  // The server-side request library rejects a bare hostname outright (no
+  // scheme to guess a default from without risking a confusing new failure
+  // in the other direction), so this is caught here instead of only
+  // surfacing as a cryptic server crash log after saving.
+  function validateUri(): boolean {
+    if (!/^https?:\/\//i.test((form.uri ?? '').trim())) {
+      toast.error('URI must start with http:// or https:// (e.g. http://192.168.1.10:32400).')
+      return false
+    }
+    return true
+  }
+
   async function testConnection() {
     if (!form.uri || !form.accessToken) {
       toast.error('Enter a URI and access token first.')
       return
     }
+    if (!validateUri()) return
     setTesting(true)
     try {
       const result = await plexServersApi.checkForeignStatus(form)
@@ -42,6 +55,7 @@ export default function PlexServerDialog({
       toast.error('Name and URI are required.')
       return
     }
+    if (!validateUri()) return
     setSaving(true)
     try {
       if (isNew) {
@@ -65,8 +79,12 @@ export default function PlexServerDialog({
         <Field label="Name">
           <TextInput value={form.name ?? ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </Field>
-        <Field label="URI" hint="e.g. http://192.168.1.10:32400">
-          <TextInput value={form.uri ?? ''} onChange={(e) => setForm({ ...form, uri: e.target.value })} />
+        <Field label="URI" hint="Must include http:// or https:// -- e.g. http://192.168.1.10:32400">
+          <TextInput
+            placeholder="http://192.168.1.10:32400"
+            value={form.uri ?? ''}
+            onChange={(e) => setForm({ ...form, uri: e.target.value })}
+          />
         </Field>
         <Field label="Access token">
           <TextInput

@@ -7,23 +7,9 @@ COPY . .
 RUN cd client && npm install
 RUN npm run build && LINUXBUILD=dizquetv sh make_dist.sh linuxonly
 
-FROM jrottenberg/ffmpeg:9.0.1-vaapi2404
+FROM jrottenberg/ffmpeg:4.3-ubuntu1804
 EXPOSE 8000
 WORKDIR /home/node/app
 ENTRYPOINT [ "./dizquetv" ]
 COPY --from=0 /home/node/app/dist/dizquetv /home/node/app/
 RUN ln -s /usr/local/bin/ffmpeg /usr/bin/ffmpeg
-# 12th-gen+ Intel iGPUs (Alder Lake and newer) need the modern iHD media
-# driver for VAAPI -- installed explicitly rather than relying on whatever
-# the base image happens to ship, since that's what actually talks to
-# /dev/dri for hardware encoding. vainfo is just for diagnosing the driver.
-# intel-media-va-driver-non-free lives in Ubuntu's multiverse component,
-# which minimal base images don't enable by default -- add-apt-repository
-# turns it on regardless of whether this image uses the legacy
-# sources.list format or the newer deb822 one.
-RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
-    && add-apt-repository -y multiverse \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    intel-media-va-driver-non-free \
-    vainfo \
-    && rm -rf /var/lib/apt/lists/*

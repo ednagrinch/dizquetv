@@ -22,7 +22,13 @@ class FfmpegSettingsService {
     update(attempt) {
         let ffmpeg = this.getCurrentState();
         attempt.ffmpegPathLockDate = ffmpeg.ffmpegPathLockDate;
-        if (isLocked(ffmpeg)) {
+        // --- Saltbox patch: fix permanent "ffmpeg path is required" deadlock ---
+        // isLocked() returns true for a document that has never had a path set
+        // (ffmpegPathLockDate is undefined -> isNaN -> true), which used to make
+        // this branch clobber the just-submitted ffmpegPath with the old (also
+        // missing) value, so validation below always failed and the path could
+        // never be set via the UI/API on a fresh or restored install.
+        if (isLocked(ffmpeg) && typeof(ffmpeg.ffmpegPath) === 'string') {
             console.log("Note: ffmpeg path is not being updated since it's been locked for your security.");
             attempt.ffmpegPath = ffmpeg.ffmpegPath;
             if (typeof(ffmpeg.ffmpegPathLockDate) === 'undefined') {

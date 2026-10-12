@@ -111,6 +111,21 @@ class FFMPEG extends events.EventEmitter {
         let ffmpegArgs = [
              `-threads`, isConcatPlaylist? 1 : this.opts.threads,
                           `-fflags`, `+genpts+discardcorrupt+igndts`];
+
+        // --- Saltbox patch: hardware-accelerated encoding (VAAPI/QSV) ---
+        // Initializes the GPU device context the hwupload stage (added further
+        // below, only when a filter pass is actually needed) requires. The concat
+        // muxer step never transcodes, so it never needs this.
+        if (!isConcatPlaylist) {
+            let encoderLower = this.opts.videoEncoder.toLowerCase();
+            if (encoderLower.includes('vaapi')) {
+                let vaapiDevice = process.env.DIZQUETV_VAAPI_DEVICE || '/dev/dri/renderD128';
+                ffmpegArgs.push(`-vaapi_device`, vaapiDevice);
+            } else if (encoderLower.includes('qsv')) {
+                ffmpegArgs.push(`-init_hw_device`, `qsv=hw`, `-filter_hw_device`, `hw`);
+            }
+        }
+
         let stillImage = false;
         
         if (
@@ -468,6 +483,22 @@ class FFMPEG extends events.EventEmitter {
                 filterComplex += audioComplex;
             } else {
                 currentAudio = `${audioFile}:${audioIndex}`;
+            }
+
+            // --- Saltbox patch: hardware-accelerated encoding (VAAPI/QSV) ---
+            // The stock command builder never uploads software-decoded frames to the
+            // GPU, so selecting a vaapi/qsv encoder silently breaks any stream that
+            // needs a filter pass (resolution/codec normalization, watermark, etc).
+            // This appends the missing format+hwupload stage whenever a hardware
+            // encoder is configured and a real encode (not a stream copy) is about
+            // to happen. Inert for every non-hardware encoder.
+            if (transcodeVideo && (this.audioOnly !== true)) {
+                let encoderLower = this.opts.videoEncoder.toLowerCase();
+                if (encoderLower.includes('vaapi') || encoderLower.includes('qsv')) {
+                    let videoRef = currentVideo.startsWith('[') ? currentVideo : `[${currentVideo}]`;
+                    filterComplex += `;${videoRef}format=nv12,hwupload[hwenc]`;
+                    currentVideo = '[hwenc]';
+                }
             }
 
             //If there is a filter complex, add it.

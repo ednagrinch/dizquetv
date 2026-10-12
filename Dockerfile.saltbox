@@ -1,0 +1,28 @@
+# Custom build for the showers/saltbox fork: runs the patched JS source
+# directly under a modern Node runtime instead of the stock nexe-compiled
+# binary (nexe targets an old, unmaintained Node 12 toolchain). ffmpeg and
+# its VAAPI/QSV hardware-encode runtime are lifted straight from the
+# upstream image, since that's already proven to work on this hardware.
+FROM vexorian/dizquetv:latest AS hwruntime
+
+FROM node:18-bookworm-slim
+
+ENV LIBVA_DRIVERS_PATH=/usr/local/lib/dri
+ENV LIBVA_DRIVER_NAME=iHD
+ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV DIZQUETV_FFMPEG_PATH=/usr/local/bin/ffmpeg
+
+COPY --from=hwruntime /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
+COPY --from=hwruntime /usr/local/bin/ffprobe /usr/local/bin/ffprobe
+COPY --from=hwruntime /usr/local/lib /usr/local/lib
+RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg \
+    && ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe
+
+WORKDIR /home/node/app
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+EXPOSE 8000
+ENTRYPOINT ["node", "index.js"]

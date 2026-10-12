@@ -83,12 +83,17 @@ class PlexTranscoder {
             await this.getDecision(stream.directPlay);
             stream.streamUrl = (this.settings.streamPath === 'direct') ? this.file : this.plexFile;
             if(this.settings.streamPath === 'direct') {
-                fs.access(this.file, fs.F_OK, (err) => {
-                    if (err) {
-                      throw Error("Can't access this file", err);
-                      return
-                    }
-                })
+                // --- Saltbox patch: don't crash the whole server on a missing file ---
+                // The original code threw inside an async fs.access callback, which
+                // Node cannot route to any surrounding try/catch -- it becomes an
+                // uncaught exception that kills the entire process (every channel,
+                // every viewer) over a single bad file. A synchronous check inside
+                // this async function rejects normally instead.
+                try {
+                    fs.accessSync(this.file, fs.constants.F_OK);
+                } catch (err) {
+                    throw Error(`Can't access this file: ${this.file}`);
+                }
             }
             if (typeof(stream.streamUrl) == 'undefined') {
                 throw Error("Direct path playback is not possible for this program because it was registered at a time when the direct path settings were not set. To fix this, you must either revert the direct path setting or rebuild this channel.");

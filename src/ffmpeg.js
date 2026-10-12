@@ -525,8 +525,21 @@ class FFMPEG extends events.EventEmitter {
             );
             if ( transcodeVideo && (this.audioOnly !== true) ) {
                 // add the video encoder flags
+                // --- Saltbox patch: -crf has no effect on vaapi/qsv encoders ---
+                // ffmpeg silently ignores it ("has not been used for any stream"),
+                // so hardware encodes were falling back to the driver's undocumented
+                // default quality level instead of anything we actually control.
+                // -qp is the equivalent constant-quality knob both vaapi and qsv
+                // support. 18 is a well-established "visually excellent" target for
+                // 1080p H.264; override via DIZQUETV_HWACCEL_QP if needed.
+                let encoderLower = this.opts.videoEncoder.toLowerCase();
+                if (encoderLower.includes('vaapi') || encoderLower.includes('qsv')) {
+                    let hwQp = process.env.DIZQUETV_HWACCEL_QP || '18';
+                    ffmpegArgs.push('-qp', hwQp);
+                } else {
+                    ffmpegArgs.push('-crf', '22');
+                }
                 ffmpegArgs.push(
-                            '-crf', '22',
                             `-maxrate:v`, `${this.opts.videoBitrate}k`,
                             `-bufsize:v`, `${this.opts.videoBufSize}k`
                 );

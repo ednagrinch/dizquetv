@@ -3,7 +3,13 @@
 # binary (nexe targets an old, unmaintained Node 12 toolchain). ffmpeg and
 # its VAAPI/QSV hardware-encode runtime are lifted straight from the
 # upstream image, since that's already proven to work on this hardware.
-FROM vexorian/dizquetv:latest AS hwruntime
+#
+# Pinned to a specific digest, not a floating tag: :latest and :edge on
+# Docker Hub turned out to point at two completely different ffmpeg builds
+# (different base OS, different linked libraries) as of this writing, and
+# :latest's doesn't even run standalone (missing libssl.so.1.1 and others).
+# This digest is :edge as of 2026-10-12, confirmed working on this hardware.
+FROM vexorian/dizquetv@sha256:22e43cccbf93fcb07bcac02cad70e57a1ac9c92022a24e1cd7d42efa32d7b383 AS hwruntime
 
 FROM node:18-bookworm-slim
 
